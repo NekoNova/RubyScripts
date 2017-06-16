@@ -34,6 +34,9 @@ files.each do |path|
   end
 end
 
+# Sort the hash cause the keys are strings.
+data = Hash[data.sort]
+
 # Write the found information into a single file.
 # We will make 2 columns, writing the error code and it's count
 CSV.open('scanner_results.csv', 'wb') do |csv|
