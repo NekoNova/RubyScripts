@@ -29,8 +29,8 @@ def download_images(url, base_url)
 		
 		File.open(path, "wb") do |file|
 			domain = full_url.to_s.gsub("index.html","")
-			file_uri = URI.encode(link["href"].gsub("./", ""))
-			file << open(URI.join(domain, file_uri)).read
+			file_uri = link["href"].gsub("./", "")
+			file << open(File.join(domain, file_uri)).read
 		end
 	end
 end
