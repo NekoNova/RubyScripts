@@ -20,11 +20,17 @@ def download_images(url, base_url)
 	page = Nokogiri::HTML(open(full_url))
 	
 	page.css("a").each do |link|
-		file_name = link["href"].split("/").last
+		file_name = link["href"].split("/").last		
+		path = File.expand_path("downloads/#{file_name}")
+		
+		next if File.exists?(path)
+		
 		puts "Image Found: #{file_name}"
 		
-		File.open(File.expand_path("downloads/#{file_name}"), "wb") do |file|
-			file << open(URI.join(full_url.to_s.gsub("index.html",""), link["href"].gsub("./", ""))).read
+		File.open(path, "wb") do |file|
+			domain = full_url.to_s.gsub("index.html","")
+			file_uri = URI.encode(link["href"].gsub("./", ""))
+			file << open(URI.join(domain, file_uri)).read
 		end
 	end
 end
