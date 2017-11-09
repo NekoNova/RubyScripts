@@ -12,7 +12,7 @@ require "openssl"
 puts "=================================="
 puts "                                  "
 puts " Oli's amazing script!            "
-puts " v1.0.3                           "
+puts " v1.0.5                           "
 puts "=================================="
 puts ""
 puts "configuring SSL..."
@@ -24,13 +24,17 @@ base_url = "https://xs.ruk.cuni.cz/Leset-web/"
 puts "Verifying download folder..."
 Dir.mkdir "downloads" unless File.exists?("downloads")
 
+def escape_url(url)
+	return (URI.unescape(url) == url) ? URI.escape(url) : url
+end
+
 def download_images(link_url, base_url)
 	full_page_url = File.join(base_url,link_url.gsub("./", ""))
 	
 	puts "Downloading images from #{full_page_url}"
 	
 	begin
-		page = Nokogiri::HTML(open(URI.escape(full_page_url)))
+		page = Nokogiri::HTML(open(escape_url(full_page_url)))
 		
 		page.css("a").each do |link|
 			file_name = link["href"].split("/").last		
@@ -40,23 +44,24 @@ def download_images(link_url, base_url)
 			
 			begin 
 				File.open(path, "wb") do |file|
-					domain = full_page_url.to_s.gsub("index.html","")
+					collection_uri = full_page_url.to_s.gsub("index.html","")
 					file_uri = link["href"].gsub("./", "")
-					encoded_uri = File.join(domain, file_uri)
+					complete_uri = File.join(collection_uri, file_uri)
 					
-					print "Downloading #{encoded_uri} ..."
+					print "Downloading #{complete_uri} ..."
 					
-					file << open(URI.escape(encoded_uri)).read
+					file << open(escape_url(complete_uri)).read
 					
 					print "\r"
 				end
 			rescue OpenURI::HTTPError => e
-				# We can't do anything if the server reports a 404
-				puts "#{file_name} could not be downloaded due HTTP 404 response" 
+				puts "[ERROR] #{file_name} could not be downloaded due HTTP 404 response"
+				puts "[ERROR] #{e.message}"
 			end
 		end
 	rescue OpenURI::HTTPError => e
-		puts "[ERROR] Could not open #{URI.escape(full_page_url)} - skipping..."
+		puts "[ERROR] Could not open #{full_page_url} - skipping..."
+		puts "[ERROR] #{e.message}"
 	end
 end
 
@@ -65,5 +70,11 @@ page = Nokogiri::HTML(open(base_url))
 	
 page.css("a").reverse.each do |link|
 	next unless link["href"].include?("index.html")
-	download_images(link["href"], base_url)
+	
+	if link["href"] == "./sl-smiÞ/index.html"
+		puts "cause we don't support Þ, so let's use ř"
+		download_images("./sl-smiř/index.html", base_url)
+	else
+		download_images(link["href"], base_url)
+	end
 end
