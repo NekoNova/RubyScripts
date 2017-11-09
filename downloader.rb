@@ -13,11 +13,12 @@ OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 
 base_url = "https://xs.ruk.cuni.cz/Leset-web/"
 
-def download_images(url, base_url)
-	full_url = URI.join(base_url,url.gsub("./", ""))
+def download_images(link_url, base_url)
+	full_page_url = File.join(base_url,link_url.gsub("./", ""))
 	
-	puts "Downloading images from #{full_url}"
-	page = Nokogiri::HTML(open(full_url))
+	puts "Downloading images from #{full_page_url}"
+	
+	page = Nokogiri::HTML(open(URI.escape(full_page_url)))
 	
 	page.css("a").each do |link|
 		file_name = link["href"].split("/").last		
@@ -25,12 +26,21 @@ def download_images(url, base_url)
 		
 		next if File.exists?(path)
 		
-		puts "Image Found: #{file_name}"
-		
-		File.open(path, "wb") do |file|
-			domain = full_url.to_s.gsub("index.html","")
-			file_uri = link["href"].gsub("./", "")
-			file << open(File.join(domain, file_uri)).read
+		begin 
+			File.open(path, "wb") do |file|
+				domain = full_page_url.to_s.gsub("index.html","")
+				file_uri = link["href"].gsub("./", "")
+				encoded_uri = File.join(domain, file_uri)
+				
+				puts "Downloading #{encoded_uri} ..."
+				
+				file << open(URI.escape(encoded_uri)).read
+				
+				Gem.win_platform? ? (system "cls") : (system "clear")
+			end
+		rescue OpenURI::HTTPError => e
+			# We can't do anything if the server reports a 404
+			puts "#{file_name} could not be downloaded due HTTP 404 response" 
 		end
 	end
 end
