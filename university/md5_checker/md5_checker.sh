@@ -11,8 +11,9 @@
 #
 # The following arguments can be passed to the script:
 #
-#   -p | --path   : The root path where the files are located.
-#   -e | --email  : The email to notify when the task is completed.
+#   -p | --path     : The root path where the files are located.
+#   -e | --email    : The email to notify when the task is completed.
+#   -r | --refresh  : Refreshes the DB, ignoring all entries and performing a full check
 #
 ########################################################################################################################
 
@@ -128,6 +129,7 @@ ROOT_PATH="/proarc/odkladaci_adresar"
 DB_PATH="$HOME/.md5_checker/db"
 DB=[]
 EMAIL=""
+REFRESH="false"
 
 # Before we do anything, make sure that our state file exists.
 # We will be using this file to write and store the state of our system
@@ -156,6 +158,10 @@ do
     shift
     shift
     ;;
+    -r|--refresh)
+    REFRESH="true"
+    shift
+    ;;
   esac
 done
 
@@ -163,7 +169,10 @@ echo "==> Initializing md5_checker on $ROOT_PATH"
 
 # Load our database into memory. We will be using this database to check whether a file has already been parsed.
 # If there is an entry in the database, then we can skip the file.
-mapfile -t DB < "$DB_PATH"
+# If the refresh flag is used, we skip this to prform a fresh check
+if [ "$REFRESH" = "false" ]; then
+  mapfile -t DB < "$DB_PATH"
+fi
 
 # Perform all the work
 traverse "$ROOT_PATH"
