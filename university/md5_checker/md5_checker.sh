@@ -109,12 +109,17 @@ save_db() {
 # But only when the email has been specified with the script arguments.
 send_notification_email() {
   if [ "$EMAIL" != "" ]; then
-    SUBJECT="[md5_checker] Finished analyzing the files"
-    (
-      echo "Hello!"
-      echo "md5_checker has finished analyzing the files in $ROOT_PATH on server $HOSTNAME"
-      echo "Please check the generated nomatch.log file for any issues (attached to this email)"
-    ) | mail -s "$SUBJECT" "$EMAIL" -A "$ROOT_PATH/nomatch.log"
+    LINE_COUNT=$(wc -l "$ROOT_PATH/nomatch.log" | awk '{ print $1 }')
+    MINIMUM_LINE_COUNT=1
+
+    if (( LINE_COUNT > MINIMUM_LINE_COUNT )); then
+      SUBJECT="[md5_checker] Finished analyzing the files"
+      (
+        echo "Hello!"
+        echo "md5_checker has finished analyzing the files in $ROOT_PATH on server $HOSTNAME"
+        echo "Please check the generated nomatch.log file for any issues (attached to this email)"
+      ) | mail -s "$SUBJECT" "$EMAIL" -A "$ROOT_PATH/nomatch.log"
+    fi
   fi
 }
 
