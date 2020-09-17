@@ -11,7 +11,8 @@
 #
 # The following arguments can be passed to the script:
 #
-#   -p | --path : The root path where the files are located.
+#   -p | --path   : The root path where the files are located.
+#   -e | --email  : The email to notify when the task is completed.
 #
 ########################################################################################################################
 
@@ -30,31 +31,38 @@ traverse() {
 # This function will perform the required work to calculate the checksum
 calculate_checksum() {
   if [[ ${1: -4} != ".md5" ]]; then
-    # File is not an .md5 file, so ignore it
+    echo "==> $1 is not an .md5 file, skipping..."
     return
   fi
 
   if printf '%s\n' "${DB[@]}" | grep -q -e "^$(realpath "$1")|match$"; then
-    # File has already been checked, so ignore it
+    echo "==> $1 has already been verified, skipping..."
     return
   fi
 
   if printf '%s\n' "${DB[@]}" | grep -q -e "^$(realpath "$1")|nomatch$"; then
-    # File failed in the past, remove the entry from our DB and reparse it
+    echo "==> $1 failed verification in the past, re-checking..."
     DB=( "${DB[@]/$(realpath "$1")|nomatch/}" )
   fi
 
   # Great, we have a file, and it's an MD5 checksum file.
   # This means we need to parse the contents to figure out what's inside.
+  echo "==> Analyzing contents of $1"
   CURRENT_DIR=$(dirname "$(realpath "$1")")
   ENTRIES=[]
-  IFS=' *' read -ra ENTRIES <<< "$(cat "$1")"
-  TIF_FILE=${ENTRIES[1]//'\r'}
+  IFS=' *' read -ra ENTRIES <<< "$(cat "$1" | tr -d '\r' | tr -d '\n')"
+  TIF_FILE=${ENTRIES[1]}
   VERIFICATION_SUM=${ENTRIES[0]}
+
+  echo "    CURRENT_DIR     : $CURRENT_DIR"
+  echo "    TIF_FILE        : $TIF_FILE (√)"
+  echo "    VERIFICATION_SUM: $VERIFICATION_SUM"
 
   # Now we can check if the MD5 checksum matches what's in the file.
   CALCULATED_CHECKSUM_ENTRIES=[]
   IFS=' ' read -ra CALCULATED_CHECKSUM_ENTRIES <<< "$(md5sum "$(realpath "$CURRENT_DIR/$TIF_FILE")")"
+
+  echo "    CALCULATED_SUN  : ${CALCULATED_CHECKSUM_ENTRIES[0]}"
 
   if [ "${CALCULATED_CHECKSUM_ENTRIES[0]}" = "$VERIFICATION_SUM" ]; then
     DB+=("$(realpath "$1")|match")
@@ -97,10 +105,24 @@ save_db() {
   printf "%s\n" "${DB[@]}" > "$DB_PATH"
 }
 
+# This function will send out the email to the user when the task is finished.
+# But only when the email has been specified with the script arguments.
+send_notification_email() {
+  if [ "$EMAIL" != "" ]; then
+    SUBJECT="[md5_checker] Finished analyzing the files"
+    (
+      echo "Hello!"
+      echo "md5_checker has finished analyzing the files in $ROOT_PATH on server $HOSTNAME"
+      echo "Please check the generated nomatch.log file for any issues (attached to this email)"
+    ) | mail -s "$SUBJECT" "$EMAIL" -A "$ROOT_PATH/nomatch.log"
+  fi
+}
+
 # Our global variables
 ROOT_PATH="/proarc/odkladaci_adresar"
 DB_PATH="$HOME/.md5_checker/db"
 DB=[]
+EMAIL=""
 
 # Before we do anything, make sure that our state file exists.
 # We will be using this file to write and store the state of our system
@@ -124,6 +146,11 @@ do
     shift
     shift
     ;;
+    -e|--email)
+    EMAIL="$2"
+    shift
+    shift
+    ;;
   esac
 done
 
@@ -137,5 +164,4 @@ mapfile -t DB < "$DB_PATH"
 traverse "$ROOT_PATH"
 save_db
 write_log_file
-
-# Done
+send_notification_email
